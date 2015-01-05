@@ -3,6 +3,9 @@
  *
  * Created: 6/22/2014 7:34:41 PM
  *  Author: Jean
+ * Under the CC BY-NC-SA license
+ * Jean Wlodarski
+ * Pickandplace.wordpress.com
  */ 
 #include <asf.h>
 #include "AT42QT2160.h"

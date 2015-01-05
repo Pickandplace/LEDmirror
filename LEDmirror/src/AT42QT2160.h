@@ -3,6 +3,9 @@
  *
  * Created: 6/22/2014 6:13:16 PM
  *  Author: Jean
+ * Under the CC BY-NC-SA license
+ * Jean Wlodarski
+ * Pickandplace.wordpress.com
  */ 
 
 

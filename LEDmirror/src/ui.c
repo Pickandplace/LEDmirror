@@ -2,7 +2,9 @@
  * ui.c
  *
  * Created: 1/2/2015 3:15:54 PM
- *  Author: Jean
+ * Under the CC BY-NC-SA license
+ * Jean Wlodarski
+ * Pickandplace.wordpress.com
  */ 
 #include <asf.h>
 #include "ui.h"
@@ -20,7 +22,7 @@ void Display_ui(void)
 	char SLIDER_STRING[] = "\r\nSlider position: ";
 	char THERM1_STRING[] = "\r\nThermistor1: ";
 	char TEMP1_STRING[] = "\r\nTemperature1: ";
-	char TEMP1PREC_STRING[] = "\r\nTempPrec1: ";
+	char PWM_FREQ_STRING[] = "\r\nPWM Freq: ";
 	char HEATING_ON_STRING[] = "\r\nHeating ON ";
 	char HEATING_OFF_STRING[] = "\r\nHeating OFF ";
 	//char MENU4_STRING[] = "Display date and time";
@@ -47,8 +49,8 @@ void Display_ui(void)
 		itoa(Temperature1,rx_buffer,10);
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
 		
-		udi_cdc_write_buf(TEMP1PREC_STRING,sizeof(TEMP1PREC_STRING));
-		itoa(Temperature1Prec,rx_buffer,10);
+		udi_cdc_write_buf(PWM_FREQ_STRING,sizeof(PWM_FREQ_STRING));
+		itoa(pwmTmp,rx_buffer,10);
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
 		
 		if ((PORTD_IN & PIN0_bm) == PIN0_bm)

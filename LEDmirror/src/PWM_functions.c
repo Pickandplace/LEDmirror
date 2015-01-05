@@ -3,6 +3,9 @@
  *
  * Created: 1/2/2015 3:34:23 PM
  *  Author: Jean
+* Under the CC BY-NC-SA license
+* Jean Wlodarski
+* Pickandplace.wordpress.com
  */ 
 #include <asf.h>
 #include "PWM_functions.h"

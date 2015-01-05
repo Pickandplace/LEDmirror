@@ -1,8 +1,10 @@
 /**
  * \file
  *
- * \brief Empty user application template
- *
+ * \brief LED Mirror main.c 
+ * Under the CC BY-NC-SA license
+ * Jean Wlodarski
+ * Pickandplace.wordpress.com
  */
 
 /**
@@ -482,7 +484,7 @@ int main (void)
 		if((Temperature1 > 100) && (StartupTimer > 30))//Overheating, switch off
 		{
 			animation = 5;
-			tc_write_period(&TCC1, 9000);
+			tc_write_period(&TCC1, 12000);
 			tc_enable(&TCC1);
 		}
 			
@@ -519,7 +521,7 @@ int main (void)
 		{
 			HeatingTimer = 0;
 			HeatingTimer2++;
-			if((HeatingTimer2 >= 6) && ((PORTD_IN & PIN0_bm) == PIN0_bm))//turn off after 3 minutes
+			if((HeatingTimer2 >= 10) && ((PORTD_IN & PIN0_bm) == PIN0_bm))//turn off after 5 minutes
 			{
 				HeatingTimer2 = 0;
 				HEATING_OFF
