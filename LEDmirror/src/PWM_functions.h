@@ -26,5 +26,6 @@ void ledsZero(uint8_t *leds);
 
 void assignAllToValue(uint8_t value, uint8_t *leds);
 
+void decreaseAllOneIncrement(uint8_t *leds);
 
 #endif /* PWM_FUNCTIONS_H_ */

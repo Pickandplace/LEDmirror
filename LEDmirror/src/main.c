@@ -43,7 +43,13 @@
 #define BAUDRATE        300000
 #define TWI_BAUDSETTING TWI_BAUD(F_SYS, BAUDRATE)
 #define STARTUP_LIGHT_INTENSITY 50
-#define ANIMATION_EEPROM_ADDRESS 0x0
+
+#define ANIMATION_EEPROM_ADDRESS 0x01
+#define EEPROM_FLAG_ADDRESS 0x00
+#define EEPROM_FLAG 0xDE
+#define EEPROM_PWM_FREQ_LSB_ADDRESS 0x02
+#define EEPROM_PWM_FREQ_MSB_ADDRESS 0x03
+#define PWM_FREQ_DEFAULT 300
 #define MY_ADC ADCA
 #define MY_ADC_CH ADC_CH0
 
@@ -51,23 +57,24 @@
 #define HEATING_OFF	PORTD_OUTCLR = PIN0_bm;
 #define HEATING_TGL	PORTD_OUTTGL = PIN0_bm;
 
-
+void enter_bootloader(void); //Jump to Bootloader
 static void PWMcounterCallback(void);
 static void adc_init(void);
 
 
 struct adc_config adc_conf;
 struct adc_channel_config adcch_conf;
-	
-uint8_t USB_port;
-uint8_t led1,led2,led3,led4,led5,led6,led7,led8,led9,led10,led11,led12,slider;
-uint8_t pwm0, slider;
+
+
+volatile uint8_t USB_port, GO_TO_BOOTLOADER;
+volatile uint8_t led1,led2,led3,led4,led5,led6,led7,led8,led9,led10,led11,led12,slider;
+volatile uint8_t pwm0;
 
 
 TWI_Master_t twiMaster;
 uint8_t twiBuffer[10];
 
-uint8_t animation,indexAnimation2,StartupLight;
+uint8_t animation,indexAnimation2,StartupLight,StartupTimer;
 uint8_t leds[12];
 
 static volatile bool main_b_cdc_enable = false;
@@ -88,8 +95,8 @@ struct calendar_date date = {
 
 struct calendar_date  *now ;
 
-uint16_t Thermistor1;
-uint8_t Temperature1, Temperature1Prec;
+uint16_t Thermistor1, pwmTmp;
+uint8_t Temperature1, Temperature1Prec,NewPWMval;
 uint16_t therm[] = {4165,3776,3393,3026,2682,2366,2080,1826,1602,1407,1238,1093,968 ,862,772,694,628,572,524,483,448,418,392,369,350,333};
 static void adc_handler(ADC_t *adc, uint8_t ch_mask, adc_result_t result)
 {
@@ -119,13 +126,14 @@ ISR(TWIE_TWIM_vect)
 
 static void GeneralPurposeTmrCallback(void)
 {
-	PORTD_DIRSET = PIN1_bm;
-	PORTD_OUTSET = PIN1_bm;
+
 	Counter125ms++;
 	timeCheck++;
 	ADCstartTimer++;
 	HeatingTimer++;
-	PORTD_OUTCLR = PIN1_bm;
+	if(StartupTimer <= 100)
+		StartupTimer++;
+
 }
 
 static void PWMcounterCallback(void)
@@ -176,24 +184,24 @@ static void PWMcounterCallback(void)
 	PORTB_OUTCLR = PIN7_bm;
 	
 	if(leds[8] >= pwm0)
-	PORTC_OUTSET = PIN0_bm;
-	else
-	PORTC_OUTCLR = PIN0_bm;
-	
-	if(leds[9] >= pwm0)
 	PORTC_OUTSET = PIN1_bm;
 	else
 	PORTC_OUTCLR = PIN1_bm;
 	
-	if(leds[10] >= pwm0)
+	if(leds[9] >= pwm0)
 	PORTC_OUTSET = PIN2_bm;
 	else
 	PORTC_OUTCLR = PIN2_bm;
 	
+	if(leds[10] >= pwm0)
+	PORTC_OUTSET = PIN3_bm;
+	else
+	PORTC_OUTCLR = PIN3_bm;
+	
  	if(leds[11] >= pwm0)
- 	PORTC_OUTSET = PIN3_bm;
+ 	PORTC_OUTSET = PIN4_bm;
  	else
- 	PORTC_OUTCLR = PIN3_bm;
+ 	PORTC_OUTCLR = PIN4_bm;
 
 }
 
@@ -209,7 +217,11 @@ static void AnimationTimer(void)
 		else{
 			tc_disable(&TCC1);
 			animation++;
-		nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);}
+			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
+			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);//Should go to a function
+		}
 		break;
 		
 		case 2://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other
@@ -220,7 +232,11 @@ static void AnimationTimer(void)
 		if(indexAnimation2 > 11){
 			tc_disable(&TCC1);
 			animation++;
-		nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);}
+			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
+			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+		}
 		break;
 		
 		case 3://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other, the second starting at the half of the previous
@@ -234,7 +250,11 @@ static void AnimationTimer(void)
 		if(indexAnimation2 > 11){
 			tc_disable(&TCC1);
 			animation++;
-		nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);}
+			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
+			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+		}
 		break;
 		
 		case 4://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other, slowed down
@@ -249,8 +269,20 @@ static void AnimationTimer(void)
 		if(leds[0] >= StartupLight ){
 			tc_disable(&TCC1);
 			animation=1;
-		nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);}
+			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
+			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+		}
 		break;
+		
+		case 5:
+			decreaseAllOneIncrement(leds);
+			if(leds[0] == 0 )
+			{
+				tc_disable(&TCC1);
+				animation = 1;
+			}
 		
 		default:
 		
@@ -261,12 +293,12 @@ static void AnimationTimer(void)
 
 int main (void)
 {
-	uint8_t   oldSlider, vbat_status, taps, ClockMode;
-	uint32_t time_now,tmp, time_old;
+	uint8_t   oldSlider, vbat_status, ClockMode,lsbMsbTmp;
+	uint32_t time_now, time_old;
 	struct calendar_date *now;
 	status_code_t status;
 	
-	
+	GO_TO_BOOTLOADER = 0;
 	PORTC_OUTCLR = 0xFF;
 	PORTB_OUTCLR = 0xFF;
 	PORTC_DIR = 0xff;
@@ -275,14 +307,52 @@ int main (void)
 	PORTB_OUTCLR = 0xFF;
 	PORTD_OUTCLR = PIN0_bm;
 	PORTD_DIRSET = PIN0_bm;
+	HEATING_OFF
+	PORTC_PIN0CTRL |= 0x80; 
+	PORTC_PIN1CTRL |= 0x80; 
+	PORTC_PIN2CTRL |= 0x80; 
+	PORTC_PIN3CTRL |= 0x80; 
+	PORTC_PIN4CTRL |= 0x80; 
+	PORTC_PIN5CTRL |= 0x80; 
+	PORTC_PIN6CTRL |= 0x80; 
+	PORTC_PIN7CTRL |= 0x80; 
+	
+	PORTD_PIN0CTRL |= 0x80;
+	PORTD_PIN1CTRL |= 0x80;
+	PORTD_PIN2CTRL |= 0x80;
+	PORTD_PIN3CTRL |= 0x80;
+	PORTD_PIN4CTRL |= 0x80;
+	PORTD_PIN5CTRL |= 0x80;
+	PORTD_PIN6CTRL |= 0x80;
+	PORTD_PIN7CTRL |= 0x80;
+	PORTE_DIRCLR = PIN2_bm;
+	PORTE_PIN2CTRL = PORT_OPC_PULLUP_gc;
+	TWI_MASTER_PORT.PIN0CTRL = PORT_OPC_WIREDANDPULL_gc;
+	TWI_MASTER_PORT.PIN1CTRL = PORT_OPC_WIREDANDPULL_gc;
+	
+	assignAllToValue(0, leds);
+	oldSlider = 0;
+	ClockMode = CLOCK_OFF;
+	USB_port = 0;
+	Counter125ms = 0;
+	ADCstartTimer = 0;	
+	StartupTimer = 0;
+	
+			
 	board_init();
 	pmic_init();
 	
 	sysclk_init();
 	cpu_irq_enable();
+	irq_initialize_vectors();
 	sleepmgr_init();
 	
-		now = malloc(sizeof(struct calendar_date));
+	
+	
+	wdt_set_timeout_period(WDT_TIMEOUT_PERIOD_1KCLK);
+	wdt_enable();
+	
+	now = malloc(sizeof(struct calendar_date));
 	*now = date;
 	
 	vbat_status = rtc_vbat_system_check(false);
@@ -321,6 +391,7 @@ int main (void)
 	case VBAT_STATUS_BBBOD: // fall through
 	case VBAT_STATUS_XOSCFAIL: // fall through
 	default:
+	PORTC_OUTSET = PIN0_bm;
 		rtc_init();
 		rtc_set_time(calendar_date_to_timestamp(&date));
 		StartupLight = 50;
@@ -332,60 +403,63 @@ int main (void)
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;
 	PMIC.CTRL |= PMIC_HILVLEN_bm;
 	sei();
+	sysclk_enable_peripheral_clock(&TWI_MASTER);
+	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUDSETTING);
+	TWIE.CTRL = 6;
+
 	
+
+	wdt_reset();
+	AT42QT2160init();
+	wdt_reset();
+	AT42QT2160readStatusBytes();
+	
+	animation = 1;
 	status = nvm_init(INT_EEPROM);
 	if(status == STATUS_OK)
 	{
-		nvm_read_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,&animation);
-		if (animation > 4)
+		nvm_read_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,&animation);
+		if(animation == EEPROM_FLAG)
+		{
+			nvm_read_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,&animation);
+			if(animation > 4)
+				animation = 1;
+	
+			nvm_read_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS,&lsbMsbTmp);
+			pwmTmp = (uint8_t)lsbMsbTmp;
+			nvm_read_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS,&lsbMsbTmp);
+			pwmTmp = pwmTmp | (lsbMsbTmp << 8);
+			if((pwmTmp > 999) || (pwmTmp < 128))
+				pwmTmp = PWM_FREQ_DEFAULT;
+		}
+		else
 		{
 			animation = 1;
+			pwmTmp = PWM_FREQ_DEFAULT;
 		}
+		
 	}
-	else
-	{
-		animation = 1;
-	}
-	
-	
+	wdt_reset();
+
+	indexAnimation2 = 0;
 	tc_enable(&TCC0);
 	tc_set_overflow_interrupt_callback(&TCC0, PWMcounterCallback);
 	tc_set_wgm(&TCC0, TC_WG_NORMAL);
-	tc_write_period(&TCC0, 200);
-	tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_MED);
-	cpu_irq_enable();
+	tc_write_period(&TCC0, 350);
+	tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
 	tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
 	
+	ui_init();
+	udc_start();
+
 	tc_enable(&TCC1);
 	tc_set_overflow_interrupt_callback(&TCC1, AnimationTimer);
 	tc_set_wgm(&TCC1, TC_WG_NORMAL);
 	tc_write_period(&TCC1, 1024);
 	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_LO);
 	tc_write_clock_source(&TCC1, TC_CLKSEL_DIV256_gc);
-	tc_disable(&TCC1);
-	irq_initialize_vectors();
 
-	sysclk_enable_peripheral_clock(&TWI_MASTER);
-	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUDSETTING);
-	TWIE.CTRL = 6;
 
-	
-	PORTE_DIRCLR = PIN2_bm;
-	PORTE_PIN2CTRL = PORT_OPC_PULLUP_gc;
-	TWI_MASTER_PORT.PIN0CTRL = PORT_OPC_WIREDANDPULL_gc;
-	TWI_MASTER_PORT.PIN1CTRL = PORT_OPC_WIREDANDPULL_gc;
-	
-	AT42QT2160init();
-	
-	AT42QT2160readStatusBytes();
-	slider =  AT42QT2160readSlider();
-	
-	USB_port = 0;
-	ui_init();
-	udc_start();
-
-	Counter125ms = 0;
-	ADCstartTimer = 0;
 	tc_enable(&TCD0);
 	tc_set_overflow_interrupt_callback(&TCD0, GeneralPurposeTmrCallback);
 	tc_set_wgm(&TCD0, TC_WG_NORMAL);
@@ -394,120 +468,43 @@ int main (void)
 	tc_write_clock_source(&TCD0, TC_CLKSEL_DIV64_gc);	//125.4ms
 	tc_reset(&TCD0);
 
-	tc_enable(&TCC1);
-	tc_set_overflow_interrupt_callback(&TCC1, AnimationTimer);
-	tc_set_wgm(&TCC1, TC_WG_NORMAL);
-	tc_write_period(&TCC1, 1024);
-	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_HI);
-	tc_write_clock_source(&TCC1, TC_CLKSEL_DIV256_gc);
-	tc_disable(&TCC1);
+
 	
-	oldSlider = 0;
-	taps = 0;
-	ClockMode = CLOCK_OFF;
-	indexAnimation2 = 0;
-	//MenuPos = 0;
 	adc_init(); 
 	adc_enable(&MY_ADC);
-	tc_enable(&TCC1);
 	
-	
-	HEATING_ON
+	HEATING_OFF
 	
 	while(1)
 	{
 
-		
+		wdt_reset();
+		if((Temperature1 > 100) && (StartupTimer > 30))//Overheating, switch off
+		{
+			animation = 5;
+			tc_write_period(&TCC1, 9000);
+			tc_enable(&TCC1);
+		}
+			
 		if( !(PORTE.IN & PIN2_bm))
 		{
-			slider =  AT42QT2160readSlider();
-	/*		if( ((slider | 0x03) == (oldSlider | 0x03)) && (slider > 10 ) && (slider < 200 ))
-			{
-				switch (taps)
-				{
-					case 0 :
-					Counter125ms = 0;
-					taps++;
-					break;
-					
-					case 1 :
-					if ( (Counter125ms >= 1) &&( Counter125ms <= 5) ){
-						taps++;
-					tmp = tc_read_count(&TCD0);}
-					else
-					{
-						Counter125ms = 0;
-						taps = 0;
-					}
-					break;
-					
-					case 2 :
-					if ( Counter125ms >= 2)
-					{
-						ClockMode = ClockMode ^ 1;
-						Counter125ms = 0;
-					}
-					taps = 0;
-					Counter125ms = 0;
-					break;
-				}
-			}
-			else
-			{
-				taps = 0;
-				oldSlider = slider;
-				Counter125ms = 0;
-			}*/
-			if(slider < 5){
+			slider =  255 - AT42QT2160readSlider();
+			
+			if(slider < 5)
 				slider = 0;
+			if(StartupTimer > 10)
 				assignAllToValue(slider, leds);
-			}
-			else{
-				time_now = rtc_get_time();
-				calendar_timestamp_to_date( time_now , now);
-				//cli();
-				assignAllToValue(slider, leds);
-				/*if (ClockMode == CLOCK_ON)
-				{
-					if(now->hour > 11)
-					leds[now->hour - 12] = 1;
-					else
-					leds[now->hour] = 1;
-					
-					leds[((now->minute) / 5)] = slider + 30;
-				}
-				sei();*/
-				
-			}
+
 			AT42QT2160readStatusBytes();
 			if(Counter125ms > 20)
 			Counter125ms = 0;
 		}
-		/*
-		if((slider >= 5) && (ClockMode == CLOCK_ON))
-		{
-			time_now = rtc_get_time();
-			calendar_timestamp_to_date( time_now , now);
-			cli();
-			assignAllToValue(slider, leds);
-			if(now->hour > 11)
-			leds[now->hour - 12] = 1;
-			else
-			leds[now->hour] = 1;
-			
-			leds[((now->minute) / 5)] = slider + 30;
-			sei();
-		}
-		*/
+		
+		
 		if ((timeCheck >= 3) && (USB_port == 1))
 		{
-			time_now = rtc_get_time();
-			if (time_now != time_old)
-			{
-				time_old = time_now;
-				Display_ui();
-			}
 			timeCheck = 0;
+			Display_ui();
 		}
 		
 		if (ADCstartTimer >= 32)
@@ -535,9 +532,30 @@ int main (void)
 			
 		}
 		
+		if(GO_TO_BOOTLOADER == 1)
+		{
+			enter_bootloader();
+		}
+		if( NewPWMval == 1)
+		{
+			NewPWMval = 0;
+			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
+			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
+			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+			cli();
+			tc_disable(&TCC0);
+			tc_enable(&TCC0);
+			tc_set_overflow_interrupt_callback(&TCC0, PWMcounterCallback);
+			tc_set_wgm(&TCC0, TC_WG_NORMAL);
+			tc_write_period(&TCC0, pwmTmp);
+			tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
+	
+			tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
+			sei();
+		}
+	
 	}
-	
-	
 }
 
 
@@ -595,8 +613,13 @@ void main_cdc_set_dtr(uint8_t port, bool b_enable)
 {
 	if (b_enable) {
 		// Host terminal has open COM
+		//HEATING_OFF
+		//assignAllToValue(1, leds);
 		ui_com_open(port);
+		
+		
 		USB_port = 1;
+		
 		}else{
 		// Host terminal has close COM
 		ui_com_close(port);
@@ -622,4 +645,46 @@ static void adc_init(void)
 	//adc_write_configuration(&MY_ADC, &adc_conf);
 	adcch_write_configuration(&MY_ADC, MY_ADC_CH, &adcch_conf);
 	adc_start_conversion(&MY_ADC, MY_ADC_CH);
+}
+
+
+void enter_bootloader(void)
+{
+	HEATING_OFF
+	assignAllToValue(0, leds);
+	udc_stop(); /*Required to stop USB interrupts messing you up before the vectors have been moved */
+	cli();
+	PR_PRGEN = 0; //disable power save
+	/* Turn off internal 32kHz for RTC */
+	OSC.CTRL &= ~OSC_RC32KEN_bm;
+
+	// Disable all Timers and Interrupts to avoid
+	// conflicts with Bootloader
+	CLK.RTCCTRL = 0;
+	RTC32.CTRL =0;
+	RTC32.INTCTRL = 0;
+	TCD0.CTRLA = 0;
+	TCD0.INTCTRLA = 0;
+	TCD1.CTRLA = 0;
+	TCD1.INTCTRLA = 0;
+	TCC0.CTRLA = 0;
+	TCC0.INTCTRLA = 0;
+	TCC1.CTRLA = 0;
+	TCC1.INTCTRLA = 0;
+	TCE0.CTRLA = 0;
+	TCE0.INTCTRLA = 0;
+
+	/* Jump to 0x401FC = BOOT_SECTION_START + 0x1FC which is
+	 * the stated location of the bootloader entry (AVR1916).
+	 * Note the address used is the word address = byte addr/2.
+	 * My ASM fu isn't that strong, there are probably nicer
+	 * ways to do this with, yennow, defined symbols .. */
+
+	asm ("ldi r30, 0xFE\n"  /* Low byte to ZL */
+		  "ldi r31, 0x00\n" /* mid byte to ZH */
+		  "ldi r24, 0x02\n" /* high byte to EIND which lives */
+		  "out 0x3c, r24\n" /* at addr 0x3c in I/O space */
+		  "eijmp":  :: "r24", "r30", "r31");
+		
+	
 }

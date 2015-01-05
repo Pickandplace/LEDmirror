@@ -142,7 +142,7 @@ void uart_rx_notify(uint8_t port)
 
 ISR(USART_RX_Vect)
 {
-	uint8_t value;
+	//uint8_t value;
 
 /*	// Data received
 	ui_com_tx_start();

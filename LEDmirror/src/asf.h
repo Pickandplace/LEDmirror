@@ -62,6 +62,9 @@
 // From module: Calendar functionality
 #include <calendar.h>
 
+// From module: Chip Reset Cause Access - XMEGA implementation
+#include <reset_cause.h>
+
 // From module: Common build items for user board support templates
 #include <user_board.h>
 
@@ -121,6 +124,9 @@
 // From module: USB Device Stack Core (Common API)
 #include <udc.h>
 #include <udd.h>
+
+// From module: WDT - Watchdog Timer
+#include <wdt.h>
 
 // From module: XMEGA compiler driver
 #include <compiler.h>

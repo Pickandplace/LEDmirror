@@ -12,10 +12,11 @@ void Display_ui(void)
 {
 	uint8_t i,MenuPos;
 	char rx_char;
-	char WELCOME_STRING[] = "\r\n\r\nMenu:\r\n1. Set intensity\r\n2. Set date\r\n3. Set time\r\n4. Turn heating ON\r\n5. Turn heating OFF\r\n";
+	char WELCOME_STRING[] = "\r\n\r\nMenu:\r\n1. Set intensity\r\n2. Set date\r\n3. Set time\r\n4. Turn heating ON\r\n5. Turn heating OFF\r\n6. Set PWM freq\r\n7. Launch Bootloader\r\n";
 	char MENU1_STRING[] = "Intensity (0..255) :";
 	char MENU2_STRING[] = "DD/MM/YY :";
 	char MENU3_STRING[] = "hh:mm :";
+	char MENU6_STRING[] = "Frequency (128..999) :";
 	char SLIDER_STRING[] = "\r\nSlider position: ";
 	char THERM1_STRING[] = "\r\nThermistor1: ";
 	char TEMP1_STRING[] = "\r\nTemperature1: ";
@@ -60,19 +61,20 @@ void Display_ui(void)
 		}
 		
 		udi_cdc_write_buf(WELCOME_STRING,sizeof(WELCOME_STRING));
-
+	wdt_disable();
 	if(udi_cdc_is_rx_ready()==1)
 	{
-		rx_char = udi_cdc_getc();	
+		rx_char = udi_cdc_getc();
+		NewPWMval = 0;	
 		switch (rx_char)
 		{
 			case 13:
-			if(MenuPos == 0)
+			//if(MenuPos == 0)
 			//udi_cdc_putc(12);
 			udi_cdc_putc('\r');
 			udi_cdc_putc('\n');
 			udi_cdc_write_buf(WELCOME_STRING,sizeof(WELCOME_STRING));
-			MenuPos = 1;
+			//MenuPos = 1;
 
 			break;
 			case '1':
@@ -138,6 +140,7 @@ void Display_ui(void)
 				timeDate->month = (rx_buffer[3] - 48)*10 + (rx_buffer[4] - 48) - 1; //Atmel month starts at 0
 				timeDate->year = (rx_buffer[6] - 48)*10 + (rx_buffer[7] - 48)  + 2000; 
 				timeDateuint = calendar_date_to_timestamp(timeDate);
+				rtc_init();
 				rtc_set_time(timeDateuint);
 			}
 			MenuPos = 0;
@@ -165,6 +168,7 @@ void Display_ui(void)
 				timeDate->minute = (rx_buffer[3] - 48)*10 + (rx_buffer[4] - 48) ; 
 				timeDate->second = 0 ; 
 				timeDateuint = calendar_date_to_timestamp(timeDate);
+				rtc_init();
 				rtc_set_time(timeDateuint);
 			}
 			MenuPos = 0;
@@ -179,11 +183,60 @@ void Display_ui(void)
 				HEATING_OFF
 				MenuPos = 0;
 			break;
+			
+			case '6':
+			udi_cdc_write_buf(MENU6_STRING,sizeof(MENU6_STRING));
+			i = 0;
+			rx_buffer[0] = 48;
+			while(rx_char != 13)
+			{
+				if(udi_cdc_is_rx_ready()==1)
+				{
+					rx_char = udi_cdc_getc();
+					udi_cdc_putc(rx_char);
+					rx_buffer[i] = rx_char;
+					i++;
+					if (i>5)
+					break;
+				}
+			}
+
+			if(i==2){
+				pwmTmp = (rx_buffer[0] - 48);
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+				}
+			if(i==3){
+				pwmTmp = (rx_buffer[0] - 48)*10 + (rx_buffer[1] - 48);
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			}
+			if(i==4){
+				pwmTmp = (rx_buffer[0] - 48)*100 + (rx_buffer[1] - 48)*10 + (rx_buffer[2] - 48) ;
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			}
+			if(pwmTmp < 1000)
+				NewPWMval = 1;
+			break;
+			case '7':
+				GO_TO_BOOTLOADER = 1;
+				MenuPos =0;
+			break;
 			default:
 			udi_cdc_putc(rx_char);
 			break;
 		}
 	}
+	if(GO_TO_BOOTLOADER == 0)
+	{
+		wdt_set_timeout_period(WDT_TIMEOUT_PERIOD_1KCLK);
+		wdt_enable();
+	}
+	
 }
 
 void displayTime(uint32_t time_now)

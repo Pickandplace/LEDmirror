@@ -40,7 +40,7 @@ void increaseAllToValue(uint8_t value, uint8_t *leds)
 	}
 }
 
-void ledsZero(uint8_t *leds)
+void ledsZero( uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -58,5 +58,16 @@ void assignAllToValue(uint8_t value, uint8_t *leds)
 	for (i=0;i<12;i++)
 	{
 		leds[i] = value;
+	}
+}
+
+void decreaseAllOneIncrement(uint8_t *leds)
+{
+	uint8_t i;
+	
+	for (i=0;i<12;i++)
+	{
+		if (leds[i] > 0)
+		leds[i] --;
 	}
 }
