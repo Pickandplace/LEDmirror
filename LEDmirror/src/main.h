@@ -93,4 +93,16 @@ void main_remotewakeup_lpm_enable(void);
 void main_remotewakeup_lpm_disable(void);
 #endif
 
+
+struct saved_data {
+	uint8_t animation;							//!< Index of the last played animation
+	uint16_t pwm_freq;							//!< PWM frequency
+	uint8_t at42qt2160_negative_threshold;
+	uint8_t at42qt2160_burst_length;
+	uint8_t at42qt2160_burst_repetition;
+	uint8_t at42qt2160_detect_integrator_NDIL;
+};
+
+uint8_t Save_profile(struct saved_data *profile);
+uint8_t Load_profile(struct saved_data *profile);
 #endif // _MAIN_H_

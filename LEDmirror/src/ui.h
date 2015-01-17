@@ -105,12 +105,13 @@ void ui_com_overflow(void);
  */
 void ui_process(uint16_t framenumber);
 
-void Display_ui(void);
+void Display_ui(struct saved_data *profile);
 void displayTime(uint32_t time_now);
 void Val8bitToASCII(uint8_t value, char*ascii);
 
 extern  uint8_t leds[12], NewPWMval;
-extern uint16_t Thermistor1, pwmTmp;
+extern uint16_t Thermistor1;
 extern uint8_t Temperature1, Temperature1Prec;
 extern uint8_t volatile  GO_TO_BOOTLOADER, slider;
+
 #endif // _UI_H_

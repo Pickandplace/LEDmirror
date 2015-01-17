@@ -34,11 +34,11 @@
 
 #define AT42QT2160_NTHR_VAL	9
 #define AT42QT2160_BURST_LENGTH_VAL	16
-#define BURST_LENGTH    8
+//#define BURST_LENGTH    8
 #define BURST_REPETITION    4
 
 
-void AT42QT2160init(void);
+void AT42QT2160init(struct saved_data profile);
 uint8_t AT42QT2160readSlider(void);
 uint8_t AT42QT2160readStatusBytes(void);
 

@@ -10,7 +10,7 @@
 #include "ui.h"
 #include "PWM_functions.h"
 #include <string.h>
-void Display_ui(void)
+void Display_ui(struct saved_data *profile)
 {
 	uint8_t i,MenuPos;
 	char rx_char;
@@ -35,7 +35,12 @@ void Display_ui(void)
 	
 	time = rtc_get_time();
 	
-		udi_cdc_putc(12);
+		udi_cdc_putc('\r');
+		udi_cdc_putc('\n');
+		udi_cdc_putc('\r');
+		udi_cdc_putc('\n');
+		udi_cdc_putc('\r');
+		udi_cdc_putc('\n');
 		displayTime(time);
 		udi_cdc_write_buf(SLIDER_STRING,sizeof(SLIDER_STRING));
 		itoa((int)slider,rx_buffer,10);
@@ -50,7 +55,7 @@ void Display_ui(void)
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
 		
 		udi_cdc_write_buf(PWM_FREQ_STRING,sizeof(PWM_FREQ_STRING));
-		itoa(pwmTmp,rx_buffer,10);
+		itoa(profile->pwm_freq,rx_buffer,10);
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
 		
 		if ((PORTD_IN & PIN0_bm) == PIN0_bm)
@@ -204,24 +209,24 @@ void Display_ui(void)
 			}
 
 			if(i==2){
-				pwmTmp = (rx_buffer[0] - 48);
+				profile->pwm_freq = (rx_buffer[0] - 48);
 				udi_cdc_putc(10);
 				udi_cdc_putc(13);
 				MenuPos = 0;
 				}
 			if(i==3){
-				pwmTmp = (rx_buffer[0] - 48)*10 + (rx_buffer[1] - 48);
+				profile->pwm_freq = (rx_buffer[0] - 48)*10 + (rx_buffer[1] - 48);
 				udi_cdc_putc(10);
 				udi_cdc_putc(13);
 				MenuPos = 0;
 			}
 			if(i==4){
-				pwmTmp = (rx_buffer[0] - 48)*100 + (rx_buffer[1] - 48)*10 + (rx_buffer[2] - 48) ;
+				profile->pwm_freq = (rx_buffer[0] - 48)*100 + (rx_buffer[1] - 48)*10 + (rx_buffer[2] - 48) ;
 				udi_cdc_putc(10);
 				udi_cdc_putc(13);
 				MenuPos = 0;
 			}
-			if(pwmTmp < 1000)
+			if(profile->pwm_freq < 1000)
 				NewPWMval = 1;
 			break;
 			case '7':
@@ -319,4 +324,22 @@ void Val8bitToASCII(uint8_t value, char*ascii)
 		ascii[2] = 48+ ((value - 200) % 10);
 		return;
 	}
+}
+
+uint16_t numberFromAscii(char * buffer)
+{
+	uint8_t i;
+	
+	for(i=0;i<5;i++)
+	{
+		if(buffer[i] == 0)
+			break;
+	}
+	if(i==2)
+		return(buffer[0] - 48);
+	if(i==3)
+		return(buffer[0] - 48)*10 + (buffer[1] - 48);
+	if(i==4)
+		return(buffer[0] - 48)*100 + (buffer[1] - 48)*10 + (buffer[2] - 48) ;
+	return(0);
 }

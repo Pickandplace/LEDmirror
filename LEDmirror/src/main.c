@@ -52,6 +52,9 @@
 #define EEPROM_PWM_FREQ_LSB_ADDRESS 0x02
 #define EEPROM_PWM_FREQ_MSB_ADDRESS 0x03
 #define PWM_FREQ_DEFAULT 300
+
+#define EEPROM_PROFILE_ADDRESS 0x01
+
 #define MY_ADC ADCA
 #define MY_ADC_CH ADC_CH0
 
@@ -76,7 +79,7 @@ volatile uint8_t pwm0;
 TWI_Master_t twiMaster;
 uint8_t twiBuffer[10];
 
-uint8_t animation,indexAnimation2,StartupLight,StartupTimer;
+uint8_t indexAnimation2,StartupLight,StartupTimer;
 uint8_t leds[12];
 
 static volatile bool main_b_cdc_enable = false;
@@ -97,7 +100,18 @@ struct calendar_date date = {
 
 struct calendar_date  *now ;
 
-uint16_t Thermistor1, pwmTmp;
+struct saved_data profile = {
+ .animation = 0,						
+ .pwm_freq = 300,	
+ .at42qt2160_negative_threshold = 9,
+ .at42qt2160_burst_length = 16,
+ .at42qt2160_burst_repetition = 4,
+ .at42qt2160_detect_integrator_NDIL = 6
+};
+
+struct saved_data  *profile_ptr ;
+
+uint16_t Thermistor1;
 uint8_t Temperature1, Temperature1Prec,NewPWMval;
 uint16_t therm[] = {4165,3776,3393,3026,2682,2366,2080,1826,1602,1407,1238,1093,968 ,862,772,694,628,572,524,483,448,418,392,369,350,333};
 static void adc_handler(ADC_t *adc, uint8_t ch_mask, adc_result_t result)
@@ -210,7 +224,7 @@ static void PWMcounterCallback(void)
 static void AnimationTimer(void)
 {
 	uint8_t i;
-	switch (animation)
+	switch (profile.animation)
 	{
 		//Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY at the same time
 		case 1:
@@ -218,11 +232,8 @@ static void AnimationTimer(void)
 		increaseAllOneIncrement(leds);
 		else{
 			tc_disable(&TCC1);
-			animation++;
-			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
-			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);//Should go to a function
+			profile.animation++;
+			Save_profile(&profile);
 		}
 		break;
 		
@@ -233,11 +244,8 @@ static void AnimationTimer(void)
 		indexAnimation2++;
 		if(indexAnimation2 > 11){
 			tc_disable(&TCC1);
-			animation++;
-			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
-			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+			profile.animation++;
+			Save_profile(&profile);
 		}
 		break;
 		
@@ -251,11 +259,8 @@ static void AnimationTimer(void)
 		
 		if(indexAnimation2 > 11){
 			tc_disable(&TCC1);
-			animation++;
-			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
-			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+			profile.animation++;
+			Save_profile(&profile);
 		}
 		break;
 		
@@ -270,20 +275,17 @@ static void AnimationTimer(void)
 		
 		if(leds[0] >= StartupLight ){
 			tc_disable(&TCC1);
-			animation=1;
-			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
-			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+			profile.animation=1;
+			Save_profile(&profile);
 		}
 		break;
 		
 		case 5:
 			decreaseAllOneIncrement(leds);
-			if(leds[0] == 0 )
+			if(leds[0] == 10 )
 			{
 				tc_disable(&TCC1);
-				animation = 1;
+				profile.animation = 1;
 			}
 		
 		default:
@@ -356,6 +358,7 @@ int main (void)
 	
 	now = malloc(sizeof(struct calendar_date));
 	*now = date;
+
 	
 	vbat_status = rtc_vbat_system_check(false);
 	time_now = calendar_date_to_timestamp(now);
@@ -411,43 +414,21 @@ int main (void)
 
 	
 
+	
+	Load_profile(&profile);
+	Save_profile(&profile);
 	wdt_reset();
-	AT42QT2160init();
+	AT42QT2160init(profile);
 	wdt_reset();
 	AT42QT2160readStatusBytes();
 	
-	animation = 1;
-	status = nvm_init(INT_EEPROM);
-	if(status == STATUS_OK)
-	{
-		nvm_read_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,&animation);
-		if(animation == EEPROM_FLAG)
-		{
-			nvm_read_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,&animation);
-			if(animation > 4)
-				animation = 1;
-	
-			nvm_read_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS,&lsbMsbTmp);
-			pwmTmp = (uint8_t)lsbMsbTmp;
-			nvm_read_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS,&lsbMsbTmp);
-			pwmTmp = pwmTmp | (lsbMsbTmp << 8);
-			if((pwmTmp > 999) || (pwmTmp < 128))
-				pwmTmp = PWM_FREQ_DEFAULT;
-		}
-		else
-		{
-			animation = 1;
-			pwmTmp = PWM_FREQ_DEFAULT;
-		}
-		
-	}
 	wdt_reset();
 
 	indexAnimation2 = 0;
 	tc_enable(&TCC0);
 	tc_set_overflow_interrupt_callback(&TCC0, PWMcounterCallback);
 	tc_set_wgm(&TCC0, TC_WG_NORMAL);
-	tc_write_period(&TCC0, 350);
+	tc_write_period(&TCC0, profile.pwm_freq);
 	tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
 	tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
 	
@@ -481,11 +462,12 @@ int main (void)
 	{
 
 		wdt_reset();
-		if((Temperature1 > 100) && (StartupTimer > 30))//Overheating, switch off
+		if((Temperature1 > 85) && (StartupTimer > 30))//Overheating, switch off
 		{
-			animation = 5;
+			profile.animation = 5;
 			tc_write_period(&TCC1, 12000);
 			tc_enable(&TCC1);
+			StartupTimer = 0;
 		}
 			
 		if( !(PORTE.IN & PIN2_bm))
@@ -506,7 +488,7 @@ int main (void)
 		if ((timeCheck >= 3) && (USB_port == 1))
 		{
 			timeCheck = 0;
-			Display_ui();
+			Display_ui(&profile);
 		}
 		
 		if (ADCstartTimer >= 32)
@@ -541,16 +523,13 @@ int main (void)
 		if( NewPWMval == 1)
 		{
 			NewPWMval = 0;
-			nvm_write_char(INT_EEPROM,ANIMATION_EEPROM_ADDRESS,animation);
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_LSB_ADDRESS, (pwmTmp & 0x00FF));
-			nvm_write_char(INT_EEPROM,EEPROM_PWM_FREQ_MSB_ADDRESS, ((pwmTmp & 0xFF00) >> 8));
-			nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+			Save_profile(&profile);
 			cli();
 			tc_disable(&TCC0);
 			tc_enable(&TCC0);
 			tc_set_overflow_interrupt_callback(&TCC0, PWMcounterCallback);
 			tc_set_wgm(&TCC0, TC_WG_NORMAL);
-			tc_write_period(&TCC0, pwmTmp);
+			tc_write_period(&TCC0, profile.pwm_freq);
 			tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
 	
 			tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
@@ -689,4 +668,44 @@ void enter_bootloader(void)
 		  "eijmp":  :: "r24", "r30", "r31");
 		
 	
+}
+
+uint8_t Save_profile(struct saved_data *profile)
+{
+
+	nvm_write_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,EEPROM_FLAG);
+	
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+0,profile->animation);
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+1,(profile->pwm_freq& 0x00FF));
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+2,((profile->pwm_freq& 0xFF00)>> 8));
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+3,profile->at42qt2160_burst_length);
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+4,profile->at42qt2160_burst_repetition);
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+5,profile->at42qt2160_detect_integrator_NDIL);
+	nvm_write_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+6,profile->at42qt2160_negative_threshold);
+	return(1);
+}
+
+uint8_t Load_profile(struct saved_data *profile)
+{
+	uint8_t flag,tmpRead;
+	uint16_t tmp;
+	
+	flag = nvm_init(INT_EEPROM);
+	if(flag == STATUS_OK)
+	{
+		nvm_read_char(INT_EEPROM,EEPROM_FLAG_ADDRESS,&flag);
+		if(flag == EEPROM_FLAG)
+		{
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+0,&profile->animation);
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+1,&tmpRead);
+			tmp = (uint8_t)tmpRead;
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+2,&tmpRead);
+			tmp = tmp | (tmpRead << 8);
+			if((tmp > 999) || (tmp < 128))
+				tmp = PWM_FREQ_DEFAULT;
+			profile->pwm_freq = tmp;
+			return(1);
+		}
+	}
+	return(0);
 }

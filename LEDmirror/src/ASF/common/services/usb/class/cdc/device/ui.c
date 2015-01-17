@@ -79,7 +79,7 @@ void ui_com_open(uint8_t port)
 {
 	/*LED_On(LED2_GPIO);*/
 	//delay_ms(1);
-	Display_ui();
+	//Display_ui();
 }
 
 void ui_com_close(uint8_t port)

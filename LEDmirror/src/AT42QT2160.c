@@ -12,38 +12,38 @@
 #include "twi_master_driver.h"
 TWI_Master_t twiMaster;
 
-void AT42QT2160init(void)
+void AT42QT2160init(struct saved_data profile)
 {
 	uint8_t NTHRconf[] = {
 		AT42QT2160_ADD_NTHR,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL,
-		AT42QT2160_NTHR_VAL
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold,
+		profile.at42qt2160_negative_threshold
 	};
 	
 	 uint8_t DisableKeys[] = {AT42QT2160_ADD_BURST_LENGTH + 8,0,0,0,0,0,0,0,0};
 	 uint8_t SliderKeys[] = {
 		AT42QT2160_ADD_BURST_LENGTH,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL,
-		AT42QT2160_BURST_LENGTH_VAL
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length,
+		profile.at42qt2160_burst_length
 	};
 	
 	 uint8_t Control[] = {AT42QT2160_ADD_SLIDER_CONTROL,0x18};
 	 uint8_t Resolution[] = {AT42QT2160_ADD_SLIDER_OPTIONS,0x00};
-	 uint8_t NDIL[] = {AT42QT2160_ADD_DETECT_INTEGRATOR,0x06};
+	 uint8_t NDIL[] = {AT42QT2160_ADD_DETECT_INTEGRATOR,profile.at42qt2160_detect_integrator_NDIL};
 	 uint8_t GPIOS[] = {AT42QT2160_ADD_GPIO_DIRECTION,0x1C};
-	 uint8_t Burst[] = {AT42QT2160_ADD_DRIFT_COMP,BURST_REPETITION};
+	 uint8_t Burst[] = {AT42QT2160_ADD_DRIFT_COMP,profile.at42qt2160_burst_repetition};
 	 uint8_t Awake[] = {AT42QT2160_ADD_KEY_CONTROL,0x04};
 	 uint8_t Cal[] = {AT42QT2160_ADD_DRIFT_CALIBRATE,0x01};
 	
