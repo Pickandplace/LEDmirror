@@ -108,6 +108,7 @@ void ui_process(uint16_t framenumber);
 void Display_ui(struct saved_data *profile);
 void displayTime(uint32_t time_now);
 void Val8bitToASCII(uint8_t value, char*ascii);
+volatile uint16_t numberFromAscii(char *buffer);
 
 extern  uint8_t leds[12], NewPWMval;
 extern uint16_t Thermistor1;

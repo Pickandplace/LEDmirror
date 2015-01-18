@@ -531,9 +531,11 @@ int main (void)
 			tc_set_wgm(&TCC0, TC_WG_NORMAL);
 			tc_write_period(&TCC0, profile.pwm_freq);
 			tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
-	
+			
 			tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
 			sei();
+			
+			AT42QT2160init(profile);
 		}
 	
 	}

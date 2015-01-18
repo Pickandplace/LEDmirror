@@ -14,17 +14,25 @@ void Display_ui(struct saved_data *profile)
 {
 	uint8_t i,MenuPos;
 	char rx_char;
-	char WELCOME_STRING[] = "\r\n\r\nMenu:\r\n1. Set intensity\r\n2. Set date\r\n3. Set time\r\n4. Turn heating ON\r\n5. Turn heating OFF\r\n6. Set PWM freq\r\n7. Launch Bootloader\r\n";
+	char WELCOME_STRING[] = "\r\n\r\nMenu:\r\n1. Set intensity\r\n2. Set date\r\n3. Set time\r\n4. Turn heating ON\r\n5. Turn heating OFF\r\n6. Set PWM freq\r\n7. Set 42QT2160 Negative Threshold\r\n8. Set 42QT2160 Burst Length\r\n9. Set 42QT2160 Burst Repetition\r\na. Set 42QT2160 NDIL\r\n0. Launch Bootloader\r\n";
 	char MENU1_STRING[] = "Intensity (0..255) :";
 	char MENU2_STRING[] = "DD/MM/YY :";
 	char MENU3_STRING[] = "hh:mm :";
 	char MENU6_STRING[] = "Frequency (128..999) :";
+	char MENU7_STRING[] = "Negative Threshold (7..12) :";
+	char MENU8_STRING[] = "Burst Length (8..32) :";
+	char MENU9_STRING[] = "Burst Repetition (1..63) :";
+	char MENUa_STRING[] = "NDIL (1..31) :";
 	char SLIDER_STRING[] = "\r\nSlider position: ";
 	char THERM1_STRING[] = "\r\nThermistor1: ";
 	char TEMP1_STRING[] = "\r\nTemperature1: ";
 	char PWM_FREQ_STRING[] = "\r\nPWM Freq: ";
 	char HEATING_ON_STRING[] = "\r\nHeating ON ";
 	char HEATING_OFF_STRING[] = "\r\nHeating OFF ";
+	char AT42_NEG_TH[] = "\r\n AT42QT26 Negative Threshold: ";
+	char AT42_BURST_LEN[] = "\r\n AT42QT26 Burst Length: ";
+	char AT42_BURST_REP[] = "\r\n AT42QT26 Burst Repetition: ";
+	char AT42_NDIL[] = "\r\n AT42QT26 NDIL: ";
 	//char MENU4_STRING[] = "Display date and time";
 	char rx_buffer[10];
 	struct calendar_date  *timeDate ;
@@ -57,6 +65,22 @@ void Display_ui(struct saved_data *profile)
 		udi_cdc_write_buf(PWM_FREQ_STRING,sizeof(PWM_FREQ_STRING));
 		itoa(profile->pwm_freq,rx_buffer,10);
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
+		
+		udi_cdc_write_buf(AT42_NEG_TH,sizeof(AT42_NEG_TH));
+		itoa(profile->at42qt2160_negative_threshold,rx_buffer,10);
+		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));	
+
+		udi_cdc_write_buf(AT42_BURST_REP,sizeof(AT42_BURST_REP));
+		itoa(profile->at42qt2160_burst_repetition,rx_buffer,10);
+		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
+
+		udi_cdc_write_buf(AT42_BURST_LEN,sizeof(AT42_BURST_LEN));
+		itoa(profile->at42qt2160_burst_length,rx_buffer,10);
+		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
+		
+		udi_cdc_write_buf(AT42_NDIL,sizeof(AT42_NDIL));
+		itoa(profile->at42qt2160_detect_integrator_NDIL,rx_buffer,10);
+		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));			
 		
 		if ((PORTD_IN & PIN0_bm) == PIN0_bm)
 		{
@@ -102,28 +126,10 @@ void Display_ui(struct saved_data *profile)
 			}
 			udi_cdc_putc(10);
 			udi_cdc_putc(13);
-			if(i<3){
-				ledsZero(leds);
-				increaseAllToValue( (rx_buffer[0] - 48), leds);
-				udi_cdc_putc(10);
-				udi_cdc_putc(13);
-				MenuPos = 0;
-			break;}
-			if(i<4){
-				ledsZero(leds);
-				increaseAllToValue( (rx_buffer[0] - 48)*10 + (rx_buffer[1] - 48) , leds);
-				udi_cdc_putc(10);
-				udi_cdc_putc(13);
-				MenuPos = 0;
-			break;}
-			if(i<5){
-				ledsZero(leds);
-				increaseAllToValue( (rx_buffer[0] - 48)*100 + (rx_buffer[1] - 48)*10 + (rx_buffer[2] - 48) , leds);
-				udi_cdc_putc(10);
-				udi_cdc_putc(13);
-				MenuPos = 0;
-			break;}
-				
+			assignAllToValue((uint8_t)numberFromAscii(rx_buffer), leds);
+			udi_cdc_putc(10);
+			udi_cdc_putc(13);
+			MenuPos = 0;
 			break;
 				
 			case '2':
@@ -192,47 +198,119 @@ void Display_ui(struct saved_data *profile)
 			break;
 			
 			case '6':
-			udi_cdc_write_buf(MENU6_STRING,sizeof(MENU6_STRING));
-			i = 0;
-			rx_buffer[0] = 48;
-			while(rx_char != 13)
-			{
-				if(udi_cdc_is_rx_ready()==1)
+				udi_cdc_write_buf(MENU6_STRING,sizeof(MENU6_STRING));
+				i = 0;
+				rx_buffer[0] = 48;
+				while(rx_char != 13)
 				{
-					rx_char = udi_cdc_getc();
-					udi_cdc_putc(rx_char);
-					rx_buffer[i] = rx_char;
-					i++;
-					if (i>5)
-					break;
+					if(udi_cdc_is_rx_ready()==1)
+					{
+						rx_char = udi_cdc_getc();
+						udi_cdc_putc(rx_char);
+						rx_buffer[i] = rx_char;
+						i++;
+						if (i>5)
+						break;
+					}
 				}
-			}
-
-			if(i==2){
-				profile->pwm_freq = (rx_buffer[0] - 48);
+			
+				profile->pwm_freq = numberFromAscii(rx_buffer);
+				if(profile->pwm_freq < 1000)
+					NewPWMval = 1;
 				udi_cdc_putc(10);
 				udi_cdc_putc(13);
 				MenuPos = 0;
-				}
-			if(i==3){
-				profile->pwm_freq = (rx_buffer[0] - 48)*10 + (rx_buffer[1] - 48);
-				udi_cdc_putc(10);
-				udi_cdc_putc(13);
-				MenuPos = 0;
-			}
-			if(i==4){
-				profile->pwm_freq = (rx_buffer[0] - 48)*100 + (rx_buffer[1] - 48)*10 + (rx_buffer[2] - 48) ;
-				udi_cdc_putc(10);
-				udi_cdc_putc(13);
-				MenuPos = 0;
-			}
-			if(profile->pwm_freq < 1000)
-				NewPWMval = 1;
 			break;
+			
 			case '7':
+				udi_cdc_write_buf(MENU7_STRING,sizeof(MENU7_STRING));
+				i = 0;
+				rx_buffer[0] = 48;
+				while(rx_char != 13){
+					if(udi_cdc_is_rx_ready()==1){
+						rx_char = udi_cdc_getc();
+						udi_cdc_putc(rx_char);
+						rx_buffer[i] = rx_char;
+						i++;
+						if (i>5)
+						break;
+					}
+				}
+				profile->at42qt2160_negative_threshold = numberFromAscii(rx_buffer);
+				NewPWMval = 1;
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			break;
+			
+			case '8':
+				udi_cdc_write_buf(MENU8_STRING,sizeof(MENU8_STRING));
+				i = 0;
+				rx_buffer[0] = 48;
+				while(rx_char != 13){
+					if(udi_cdc_is_rx_ready()==1){
+						rx_char = udi_cdc_getc();
+						udi_cdc_putc(rx_char);
+						rx_buffer[i] = rx_char;
+						i++;
+						if (i>5)
+						break;
+					}
+				}
+				profile->at42qt2160_burst_length = numberFromAscii(rx_buffer);
+				NewPWMval = 1;
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			break;	
+			
+			case '9':
+				udi_cdc_write_buf(MENU9_STRING,sizeof(MENU9_STRING));
+				i = 0;
+				rx_buffer[0] = 48;
+				while(rx_char != 13){
+					if(udi_cdc_is_rx_ready()==1){
+						rx_char = udi_cdc_getc();
+						udi_cdc_putc(rx_char);
+						rx_buffer[i] = rx_char;
+						i++;
+						if (i>5)
+						break;
+					}
+				}
+				profile->at42qt2160_burst_repetition = numberFromAscii(rx_buffer);
+				NewPWMval = 1;
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			break;
+
+			case 'a':
+				udi_cdc_write_buf(MENUa_STRING,sizeof(MENUa_STRING));
+				i = 0;
+				rx_buffer[0] = 48;
+				while(rx_char != 13){
+					if(udi_cdc_is_rx_ready()==1){
+						rx_char = udi_cdc_getc();
+						udi_cdc_putc(rx_char);
+						rx_buffer[i] = rx_char;
+						i++;
+						if (i>5)
+						break;
+					}
+				}
+				profile->at42qt2160_detect_integrator_NDIL = numberFromAscii(rx_buffer);
+				NewPWMval = 1;
+				udi_cdc_putc(10);
+				udi_cdc_putc(13);
+				MenuPos = 0;
+			break;
+											
+			case '0':
 				GO_TO_BOOTLOADER = 1;
 				MenuPos =0;
 			break;
+			
 			default:
 			udi_cdc_putc(rx_char);
 			break;
@@ -326,20 +404,19 @@ void Val8bitToASCII(uint8_t value, char*ascii)
 	}
 }
 
-uint16_t numberFromAscii(char * buffer)
+volatile uint16_t numberFromAscii(char buffer[])
 {
 	uint8_t i;
-	
-	for(i=0;i<5;i++)
+	for(i=0;i<4;i++)
 	{
-		if(buffer[i] == 0)
+		if(buffer[i] == 13)
 			break;
 	}
-	if(i==2)
-		return(buffer[0] - 48);
 	if(i==3)
-		return(buffer[0] - 48)*10 + (buffer[1] - 48);
-	if(i==4)
-		return(buffer[0] - 48)*100 + (buffer[1] - 48)*10 + (buffer[2] - 48) ;
+		return ((buffer[0] - 48)*100 + (buffer[1] - 48)*10 + (buffer[2] - 48)) ;
+	if(i==2)
+		return ((buffer[0] - 48)*10 + (buffer[1] - 48));
+	if(i==1)
+		return (buffer[0] - 48);
 	return(0);
 }
