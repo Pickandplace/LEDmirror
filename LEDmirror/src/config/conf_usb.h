@@ -109,6 +109,7 @@
 // other than manufacturer, product and serial string
 // #define  UDC_GET_EXTRA_STRING()
 //@}
+
 #define  UDC_VBUS_EVENT(b_vbus_high)
 #define  UDC_SOF_EVENT()                  main_sof_action()
 #define  UDC_SUSPEND_EVENT()              main_suspend_action()
@@ -143,6 +144,9 @@
 #define  UDI_CDC_SET_DTR_EXT(port,set)
 #define  UDI_CDC_SET_RTS_EXT(port,set)
 */
+
+
+
 #define  UDI_CDC_ENABLE_EXT(port)         main_cdc_enable(port)
 #define  UDI_CDC_DISABLE_EXT(port)        main_cdc_disable(port)
 #define  UDI_CDC_RX_NOTIFY(port)          uart_rx_notify(port)
@@ -150,6 +154,8 @@
 #define  UDI_CDC_SET_CODING_EXT(port,cfg) uart_config(port,cfg)
 #define  UDI_CDC_SET_DTR_EXT(port,set)    main_cdc_set_dtr(port,set)
 #define  UDI_CDC_SET_RTS_EXT(port,set)
+
+
 // #define UDI_CDC_ENABLE_EXT(port) my_callback_cdc_enable()
 // extern bool my_callback_cdc_enable(void);
 // #define UDI_CDC_DISABLE_EXT(port) my_callback_cdc_disable()

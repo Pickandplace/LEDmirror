@@ -10,7 +10,7 @@
 #include <asf.h>
 #include "PWM_functions.h"
 
-void increaseAllOneIncrement(uint8_t *leds)
+void increaseAllOneIncrement(volatile uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -21,7 +21,7 @@ void increaseAllOneIncrement(uint8_t *leds)
 	}
 }
 
-void increaseAllToValueOneIncrement(uint8_t value, uint8_t *leds)
+void increaseAllToValueOneIncrement(uint8_t value, volatile uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -32,7 +32,7 @@ void increaseAllToValueOneIncrement(uint8_t value, uint8_t *leds)
 	}
 }
 
-void increaseAllToValue(uint8_t value, uint8_t *leds)
+void increaseAllToValue(uint8_t value, volatile uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -43,7 +43,7 @@ void increaseAllToValue(uint8_t value, uint8_t *leds)
 	}
 }
 
-void ledsZero( uint8_t *leds)
+void ledsZero( volatile uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -54,7 +54,7 @@ void ledsZero( uint8_t *leds)
 }
 
 
-void assignAllToValue(uint8_t value, uint8_t *leds)
+void assignAllToValue(uint8_t value, volatile uint8_t *leds)
 {
 	uint8_t i;
 	
@@ -64,7 +64,7 @@ void assignAllToValue(uint8_t value, uint8_t *leds)
 	}
 }
 
-void decreaseAllOneIncrement(uint8_t *leds)
+void decreaseAllOneIncrement( volatile uint8_t *leds)
 {
 	uint8_t i;
 	

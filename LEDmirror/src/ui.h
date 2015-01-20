@@ -110,7 +110,8 @@ void displayTime(uint32_t time_now);
 void Val8bitToASCII(uint8_t value, char*ascii);
 volatile uint16_t numberFromAscii(char *buffer);
 
-extern  uint8_t leds[12], NewPWMval;
+extern   uint8_t NewPWMval;
+extern   volatile uint8_t leds[12];
 extern uint16_t Thermistor1;
 extern uint8_t Temperature1, Temperature1Prec;
 extern uint8_t volatile  GO_TO_BOOTLOADER, slider;

@@ -51,6 +51,7 @@
 #include "udc_desc.h"
 #include "udi.h"
 
+
 // Check the number of port
 #ifndef  UDI_CDC_PORT_NB
 # define  UDI_CDC_PORT_NB 1

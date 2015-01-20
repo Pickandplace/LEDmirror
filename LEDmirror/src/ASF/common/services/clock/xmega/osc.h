@@ -45,6 +45,7 @@
 
 #include <compiler.h>
 #include <board.h>
+#include <conf_clock.h>
 
 /**
  * \weakgroup osc_group

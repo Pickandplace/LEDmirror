@@ -80,7 +80,7 @@ TWI_Master_t twiMaster;
 uint8_t twiBuffer[10];
 
 uint8_t indexAnimation2,StartupLight,StartupTimer;
-uint8_t leds[12];
+volatile uint8_t leds[12];
 
 static volatile bool main_b_cdc_enable = false;
 
@@ -142,82 +142,84 @@ ISR(TWIE_TWIM_vect)
 
 static void GeneralPurposeTmrCallback(void)
 {
-
+	//PORTC_OUTSET |= PIN7_bm; 
 	Counter125ms++;
 	timeCheck++;
 	ADCstartTimer++;
 	HeatingTimer++;
 	if(StartupTimer <= 100)
 		StartupTimer++;
-
+	//PORTC_OUTCLR |= PIN7_bm; 
 }
 
 static void PWMcounterCallback(void)
 {
+	uint8_t a,b;
 
-	if(pwm0 >= 255)
+	if(pwm0 == 255)
 		pwm0 = 1;
 	else
 		pwm0++;
-	
+
 	if(leds[0] >= pwm0)
-		PORTB_OUTSET = PIN0_bm;
+		VPORT0_OUT |= (1 << 0);
 	else
-		PORTB_OUTCLR = PIN0_bm;
+		VPORT0_OUT &= 0xFE ; //0b1111 1110
+		
 	if(leds[1] >= pwm0)
-	PORTB_OUTSET = PIN1_bm;
+		VPORT0_OUT |= (1 << 1);
 	else
-	PORTB_OUTCLR = PIN1_bm;
+		VPORT0_OUT &= 0xFD ; //0b1111 1101
 	
 	if(leds[2] >= pwm0)
-	PORTB_OUTSET = PIN2_bm;
+		VPORT0_OUT |= (1 << 2);
 	else
-	PORTB_OUTCLR = PIN2_bm;
+		VPORT0_OUT &= 0xFB ; //0b1111 1011
 	
 	if(leds[3] >= pwm0)
-	PORTB_OUTSET = PIN3_bm;
+		VPORT0_OUT |= (1 << 3);
 	else
-	PORTB_OUTCLR = PIN3_bm;
+		VPORT0_OUT &= 0xF7 ; //0b1111 0111
 	
 	if(leds[4] >= pwm0)
-	PORTB_OUTSET = PIN4_bm;
+		VPORT0_OUT |= (1 << 4);
 	else
-	PORTB_OUTCLR = PIN4_bm;
+		VPORT0_OUT &= 0xEF ; //0b1110 1111
 	
 	if(leds[5] >= pwm0)
-	PORTB_OUTSET = PIN5_bm;
+		VPORT0_OUT |= (1 << 5);
 	else
-	PORTB_OUTCLR = PIN5_bm;
+		VPORT0_OUT &= 0xDF ; //0b1101 1111
 	
 	if(leds[6] >= pwm0)
-	PORTB_OUTSET = PIN6_bm;
+		VPORT0_OUT |= (1 << 6);
 	else
-	PORTB_OUTCLR = PIN6_bm;
+		VPORT0_OUT &= 0xBF ; //0b1011 1111
 	
 	if(leds[7] >= pwm0)
-	PORTB_OUTSET = PIN7_bm;
+		VPORT0_OUT |= (1 << 7);
 	else
-	PORTB_OUTCLR = PIN7_bm;
+		VPORT0_OUT &= 0x7F ; //0b0111 1111
 	
 	if(leds[8] >= pwm0)
-	PORTC_OUTSET = PIN1_bm;
+		VPORT1_OUT |= (1 << 1);
 	else
-	PORTC_OUTCLR = PIN1_bm;
+		VPORT1_OUT &= 0xFD ; //0VPORT1_OUT1111 1101
 	
 	if(leds[9] >= pwm0)
-	PORTC_OUTSET = PIN2_bm;
+		VPORT1_OUT |= (1 << 2);
 	else
-	PORTC_OUTCLR = PIN2_bm;
+		VPORT1_OUT &= 0xFB ; //0VPORT1_OUT1111 1011
 	
 	if(leds[10] >= pwm0)
-	PORTC_OUTSET = PIN3_bm;
+		VPORT1_OUT |= (1 << 3);
 	else
-	PORTC_OUTCLR = PIN3_bm;
+		VPORT1_OUT &= 0xF7 ; //0VPORT1_OUT1111 0111
 	
  	if(leds[11] >= pwm0)
- 	PORTC_OUTSET = PIN4_bm;
- 	else
- 	PORTC_OUTCLR = PIN4_bm;
+ 		VPORT1_OUT |= (1 << 4);
+	else
+		VPORT1_OUT &= 0xEF ; //0VPORT1_OUT1110 1111
 
 }
 
@@ -321,18 +323,27 @@ int main (void)
 	PORTC_PIN6CTRL |= 0x80; 
 	PORTC_PIN7CTRL |= 0x80; 
 	
-	PORTD_PIN0CTRL |= 0x80;
-	PORTD_PIN1CTRL |= 0x80;
-	PORTD_PIN2CTRL |= 0x80;
-	PORTD_PIN3CTRL |= 0x80;
-	PORTD_PIN4CTRL |= 0x80;
-	PORTD_PIN5CTRL |= 0x80;
-	PORTD_PIN6CTRL |= 0x80;
-	PORTD_PIN7CTRL |= 0x80;
+	PORTB_PIN0CTRL |= 0x80;
+	PORTB_PIN1CTRL |= 0x80;
+	PORTB_PIN2CTRL |= 0x80;
+	PORTB_PIN3CTRL |= 0x80;
+	PORTB_PIN4CTRL |= 0x80;
+	PORTB_PIN5CTRL |= 0x80;
+	PORTB_PIN6CTRL |= 0x80;
+	PORTB_PIN7CTRL |= 0x80;
 	PORTE_DIRCLR = PIN2_bm;
 	PORTE_PIN2CTRL = PORT_OPC_PULLUP_gc;
 	TWI_MASTER_PORT.PIN0CTRL = PORT_OPC_WIREDANDPULL_gc;
 	TWI_MASTER_PORT.PIN1CTRL = PORT_OPC_WIREDANDPULL_gc;
+	
+	//LEDs on port B 0..7 and C 1..4
+	//Map to virtual ports
+	PORTCFG_VPCTRLA = PORTCFG_VP02MAP_PORTB_gc | PORTCFG_VP13MAP_PORTC_gc;
+	
+	//PORTCFG_VPCTRLA = PORTCFG_VP02MAP_PORTC_gc;
+	VPORT0_DIR = 0xFF;
+	VPORT1_DIR = 0xFF;
+	
 	
 	assignAllToValue(0, leds);
 	oldSlider = 0;
@@ -345,7 +356,9 @@ int main (void)
 			
 	board_init();
 	pmic_init();
-	
+	OSC_XOSCCTRL = OSC_FRQRANGE_12TO16_gc | OSC_XOSCSEL_XTAL_16KCLK_gc;
+	OSC_CTRL |= OSC_XOSCEN_bm;
+	//while(!(OSC_STATUS & OSC_XOSCRDY_bm));
 	sysclk_init();
 	cpu_irq_enable();
 	irq_initialize_vectors();
@@ -353,7 +366,7 @@ int main (void)
 	
 	
 	
-	wdt_set_timeout_period(WDT_TIMEOUT_PERIOD_1KCLK);
+	wdt_set_timeout_period(WDT_TIMEOUT_PERIOD_4KCLK);
 	wdt_enable();
 	
 	now = malloc(sizeof(struct calendar_date));
@@ -409,7 +422,7 @@ int main (void)
 	PMIC.CTRL |= PMIC_HILVLEN_bm;
 	sei();
 	sysclk_enable_peripheral_clock(&TWI_MASTER);
-	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUDSETTING);
+	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUDSETTING);
 	TWIE.CTRL = 6;
 
 	
@@ -431,6 +444,8 @@ int main (void)
 	tc_write_period(&TCC0, profile.pwm_freq);
 	tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
 	tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
+	//assignAllToValue(50, leds);
+
 	
 	ui_init();
 	udc_start();
@@ -446,9 +461,9 @@ int main (void)
 	tc_enable(&TCD0);
 	tc_set_overflow_interrupt_callback(&TCD0, GeneralPurposeTmrCallback);
 	tc_set_wgm(&TCD0, TC_WG_NORMAL);
-	tc_write_period(&TCD0, 0xFFFF);
+	tc_write_period(&TCD0, 0x3FFF);
 	tc_set_overflow_interrupt_level(&TCD0, TC_INT_LVL_MED);
-	tc_write_clock_source(&TCD0, TC_CLKSEL_DIV64_gc);	//125.4ms
+	tc_write_clock_source(&TCD0, TC_CLKSEL_DIV256_gc);	//125.4ms
 	tc_reset(&TCD0);
 
 
@@ -462,6 +477,7 @@ int main (void)
 	{
 
 		wdt_reset();
+		
 		if((Temperature1 > 85) && (StartupTimer > 30))//Overheating, switch off
 		{
 			profile.animation = 5;
@@ -635,10 +651,10 @@ void enter_bootloader(void)
 {
 	HEATING_OFF
 	assignAllToValue(0, leds);
-	udc_stop(); /*Required to stop USB interrupts messing you up before the vectors have been moved */
+	udc_stop(); //Required to stop USB interrupts messing you up before the vectors have been moved 
 	cli();
 	PR_PRGEN = 0; //disable power save
-	/* Turn off internal 32kHz for RTC */
+	// Turn off internal 32kHz for RTC 
 	OSC.CTRL &= ~OSC_RC32KEN_bm;
 
 	// Disable all Timers and Interrupts to avoid
@@ -657,16 +673,16 @@ void enter_bootloader(void)
 	TCE0.CTRLA = 0;
 	TCE0.INTCTRLA = 0;
 
-	/* Jump to 0x401FC = BOOT_SECTION_START + 0x1FC which is
-	 * the stated location of the bootloader entry (AVR1916).
-	 * Note the address used is the word address = byte addr/2.
-	 * My ASM fu isn't that strong, there are probably nicer
-	 * ways to do this with, yennow, defined symbols .. */
+	// Jump to 0x401FC = BOOT_SECTION_START + 0x1FC which is
+	 // the stated location of the bootloader entry (AVR1916).
+	 //Note the address used is the word address = byte addr/2.
+	 // My ASM fu isn't that strong, there are probably nicer
+	 // ways to do this with, yennow, defined symbols .. 
 
-	asm ("ldi r30, 0xFE\n"  /* Low byte to ZL */
-		  "ldi r31, 0x00\n" /* mid byte to ZH */
-		  "ldi r24, 0x02\n" /* high byte to EIND which lives */
-		  "out 0x3c, r24\n" /* at addr 0x3c in I/O space */
+	asm ("ldi r30, 0xFE\n"  // Low byte to ZL 
+		  "ldi r31, 0x00\n" // mid byte to ZH 
+		  "ldi r24, 0x02\n" /// high byte to EIND which lives 
+		  "out 0x3c, r24\n" // at addr 0x3c in I/O space 
 		  "eijmp":  :: "r24", "r30", "r31");
 		
 	
