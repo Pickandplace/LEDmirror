@@ -154,7 +154,6 @@ static void GeneralPurposeTmrCallback(void)
 
 static void PWMcounterCallback(void)
 {
-	uint8_t a,b;
 
 	if(pwm0 == 255)
 		pwm0 = 1;
@@ -225,7 +224,6 @@ static void PWMcounterCallback(void)
 
 static void AnimationTimer(void)
 {
-	uint8_t i;
 	switch (profile.animation)
 	{
 		//Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY at the same time
@@ -266,9 +264,9 @@ static void AnimationTimer(void)
 		}
 		break;
 		
-		case 4://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other, slowed down
+		case 4://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other, sped up
 		
-		tc_write_period(&TCC1, 1024);
+		tc_write_period(&TCC1, 128);
 		leds[indexAnimation2]++;
 		indexAnimation2++;
 		
@@ -284,7 +282,7 @@ static void AnimationTimer(void)
 		
 		case 5:
 			decreaseAllOneIncrement(leds);
-			if(leds[0] == 10 )
+			if(leds[0] == 15 )
 			{
 				tc_disable(&TCC1);
 				profile.animation = 1;
@@ -299,10 +297,10 @@ static void AnimationTimer(void)
 
 int main (void)
 {
-	uint8_t   oldSlider, vbat_status, ClockMode,lsbMsbTmp;
-	uint32_t time_now, time_old;
+	uint8_t   vbat_status;
+	uint32_t time_now;
 	struct calendar_date *now;
-	status_code_t status;
+	//status_code_t status;
 	
 	GO_TO_BOOTLOADER = 0;
 	PORTC_OUTCLR = 0xFF;
@@ -346,8 +344,7 @@ int main (void)
 	
 	
 	assignAllToValue(0, leds);
-	oldSlider = 0;
-	ClockMode = CLOCK_OFF;
+
 	USB_port = 0;
 	Counter125ms = 0;
 	ADCstartTimer = 0;	
@@ -389,20 +386,12 @@ int main (void)
 		time_now = rtc_get_time();
 		calendar_timestamp_to_date( time_now , now);
 		
-		if( (now->month >= MARCH) && (now->month <= AUGUST)) //Summer
-		{
-			if((now->hour >= 7) && (now->hour <= 18)) //Day
-				StartupLight = 60;
-			else //Night
-				StartupLight = 40;
-		}
-		else //Winter
-		{
-			if((now->hour > 8) && (now->hour <= 16)) //Day
-				StartupLight = 60;
-			else //Night
-				StartupLight = 40;
-		}
+		
+		if((now->hour <= 1) && (now->hour <= 8)) //Night
+			StartupLight = 40;
+		else //Day
+			StartupLight = 128;
+		
 		break;
 	case VBAT_STATUS_NO_POWER: // fall through
 	case VBAT_STATUS_BBPOR: // fall through
@@ -444,8 +433,7 @@ int main (void)
 	tc_write_period(&TCC0, profile.pwm_freq);
 	tc_set_overflow_interrupt_level(&TCC0, TC_INT_LVL_HI);
 	tc_write_clock_source(&TCC0, TC_CLKSEL_DIV2_gc);
-	//assignAllToValue(50, leds);
-
+	
 	
 	ui_init();
 	udc_start();
@@ -453,10 +441,11 @@ int main (void)
 	tc_enable(&TCC1);
 	tc_set_overflow_interrupt_callback(&TCC1, AnimationTimer);
 	tc_set_wgm(&TCC1, TC_WG_NORMAL);
-	tc_write_period(&TCC1, 1024);
+	tc_write_period(&TCC1, 200);
 	tc_set_overflow_interrupt_level(&TCC1, TC_INT_LVL_LO);
 	tc_write_clock_source(&TCC1, TC_CLKSEL_DIV256_gc);
 
+	
 
 	tc_enable(&TCD0);
 	tc_set_overflow_interrupt_callback(&TCD0, GeneralPurposeTmrCallback);
@@ -472,7 +461,6 @@ int main (void)
 	adc_enable(&MY_ADC);
 	
 	HEATING_OFF
-	
 	while(1)
 	{
 
@@ -519,7 +507,7 @@ int main (void)
 		{
 			HeatingTimer = 0;
 			HeatingTimer2++;
-			if((HeatingTimer2 >= 10) && ((PORTD_IN & PIN0_bm) == PIN0_bm))//turn off after 5 minutes
+			if((HeatingTimer2 >= 20) && ((PORTD_IN & PIN0_bm) == PIN0_bm))//turn off after 10 minutes
 			{
 				HeatingTimer2 = 0;
 				HEATING_OFF
@@ -715,6 +703,8 @@ uint8_t Load_profile(struct saved_data *profile)
 		if(flag == EEPROM_FLAG)
 		{
 			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+0,&profile->animation);
+			if((profile->animation == 0) || (profile->animation > 4))
+				profile->animation = 1;
 			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+1,&tmpRead);
 			tmp = (uint8_t)tmpRead;
 			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+2,&tmpRead);

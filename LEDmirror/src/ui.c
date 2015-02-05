@@ -51,7 +51,7 @@ void Display_ui(struct saved_data *profile)
 		udi_cdc_putc('\n');
 		displayTime(time);
 		udi_cdc_write_buf(SLIDER_STRING,sizeof(SLIDER_STRING));
-		itoa((int)slider,rx_buffer,10);
+		itoa((int)profile->animation,rx_buffer,10);
 		udi_cdc_write_buf(rx_buffer,strlen(rx_buffer));
 		
 		udi_cdc_write_buf(THERM1_STRING,sizeof(THERM1_STRING));
@@ -410,13 +410,4 @@ volatile uint16_t numberFromAscii(char buffer[])
 	for(i=0;i<4;i++)
 	{
 		if(buffer[i] == 13)
-			break;
-	}
-	if(i==3)
-		return ((buffer[0] - 48)*100 + (buffer[1] - 48)*10 + (buffer[2] - 48)) ;
-	if(i==2)
-		return ((buffer[0] - 48)*10 + (buffer[1] - 48));
-	if(i==1)
-		return (buffer[0] - 48);
-	return(0);
-}
+			b
