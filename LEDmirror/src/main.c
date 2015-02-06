@@ -79,7 +79,7 @@ volatile uint8_t pwm0;
 TWI_Master_t twiMaster;
 uint8_t twiBuffer[10];
 
-uint8_t indexAnimation2,StartupLight,StartupTimer;
+uint8_t indexAnimation2,indexAnimation5,StartupLight,StartupTimer;
 volatile uint8_t leds[12];
 
 static volatile bool main_b_cdc_enable = false;
@@ -229,7 +229,7 @@ static void AnimationTimer(void)
 		//Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY at the same time
 		case 1:
 		if(leds[0] < StartupLight)
-		increaseAllOneIncrement(leds);
+			increaseAllOneIncrement(leds);
 		else{
 			tc_disable(&TCC1);
 			profile.animation++;
@@ -239,9 +239,9 @@ static void AnimationTimer(void)
 		
 		case 2://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other
 		if(leds[indexAnimation2] < StartupLight)
-		leds[indexAnimation2]++;
+			leds[indexAnimation2]++;
 		else
-		indexAnimation2++;
+			indexAnimation2++;
 		if(indexAnimation2 > 11){
 			tc_disable(&TCC1);
 			profile.animation++;
@@ -251,9 +251,9 @@ static void AnimationTimer(void)
 		
 		case 3://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY one after the other, the second starting at the half of the previous
 		if(leds[indexAnimation2] < StartupLight)
-		leds[indexAnimation2]++;
+			leds[indexAnimation2]++;
 		else
-		indexAnimation2++;
+			indexAnimation2++;
 		if( (leds[indexAnimation2] > (StartupLight /2) ) && (indexAnimation2<10) )
 		leds[indexAnimation2+1]++;
 		
@@ -275,12 +275,33 @@ static void AnimationTimer(void)
 		
 		if(leds[0] >= StartupLight ){
 			tc_disable(&TCC1);
+			profile.animation++;
+			Save_profile(&profile);
+		}
+		break;
+
+		case 5://Increase all the LEDs from 0 to STARTUP_LIGHT_INTENSITY in two columns
+		
+		
+		if(leds[indexAnimation5] < StartupLight)
+			{
+				leds[indexAnimation5]++;
+				leds[5-indexAnimation2]++;
+			}
+		else
+		{
+			indexAnimation5++;
+			indexAnimation2++;
+		}
+		
+		if(leds[0] >= StartupLight ){
+			tc_disable(&TCC1);
 			profile.animation=1;
 			Save_profile(&profile);
 		}
 		break;
-		
-		case 5:
+				
+		case 10:
 			decreaseAllOneIncrement(leds);
 			if(leds[0] == 15 )
 			{
@@ -387,10 +408,10 @@ int main (void)
 		calendar_timestamp_to_date( time_now , now);
 		
 		
-		if((now->hour <= 1) && (now->hour <= 8)) //Night
+		if((now->hour >= 8) && (now->hour <= 23)) //Day
+			StartupLight = 100;
+		else //Night
 			StartupLight = 40;
-		else //Day
-			StartupLight = 128;
 		
 		break;
 	case VBAT_STATUS_NO_POWER: // fall through
@@ -401,9 +422,11 @@ int main (void)
 	PORTC_OUTSET = PIN0_bm;
 		rtc_init();
 		rtc_set_time(calendar_date_to_timestamp(&date));
-		StartupLight = 50;
+		StartupLight = 80;
 		break;
 	}
+
+
 
 	slider = StartupLight;
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;
@@ -426,7 +449,9 @@ int main (void)
 	
 	wdt_reset();
 
+
 	indexAnimation2 = 0;
+	indexAnimation5 = 6;
 	tc_enable(&TCC0);
 	tc_set_overflow_interrupt_callback(&TCC0, PWMcounterCallback);
 	tc_set_wgm(&TCC0, TC_WG_NORMAL);
@@ -468,7 +493,7 @@ int main (void)
 		
 		if((Temperature1 > 85) && (StartupTimer > 30))//Overheating, switch off
 		{
-			profile.animation = 5;
+			profile.animation = 10;
 			tc_write_period(&TCC1, 12000);
 			tc_enable(&TCC1);
 			StartupTimer = 0;
@@ -703,7 +728,7 @@ uint8_t Load_profile(struct saved_data *profile)
 		if(flag == EEPROM_FLAG)
 		{
 			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+0,&profile->animation);
-			if((profile->animation == 0) || (profile->animation > 4))
+			if((profile->animation == 0) || (profile->animation > 10))
 				profile->animation = 1;
 			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+1,&tmpRead);
 			tmp = (uint8_t)tmpRead;
@@ -712,6 +737,12 @@ uint8_t Load_profile(struct saved_data *profile)
 			if((tmp > 999) || (tmp < 128))
 				tmp = PWM_FREQ_DEFAULT;
 			profile->pwm_freq = tmp;
+			
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+3,&profile->at42qt2160_burst_length);
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+4,&profile->at42qt2160_burst_repetition);
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+5,&profile->at42qt2160_detect_integrator_NDIL);
+			nvm_read_char(INT_EEPROM,EEPROM_PROFILE_ADDRESS+6,&profile->at42qt2160_negative_threshold);
+			
 			return(1);
 		}
 	}
